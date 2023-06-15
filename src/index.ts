@@ -1,8 +1,16 @@
 import { verbose } from "sqlite3";
-import { Configuration, OpenAIApi } from "openai";
+import {
+  ChatCompletionRequestMessage,
+  ChatCompletionResponseMessageRoleEnum,
+  Configuration,
+  OpenAIApi,
+} from "openai";
 import { ChatCompletionRequestMessageRoleEnum } from "openai";
 
 import { rapidApiKey, basePath, rapidApiHost } from "../config.json";
+
+//@ts-ignore
+const util = require("util");
 
 type TableDict = {
   tableName: string;
@@ -99,20 +107,25 @@ const getDatabaseSchemaString = async () => {
   return databaseSchemaString;
 };
 
-const askDatabase = (query) => {
-  db.all(query, (err, rows) => {
-    if (err) throw err;
-    console.log("execute response:\n", rows);
+const askDatabase = async (query) => {
+  return new Promise((resolve, reject) => {
+    db.all(query, (err, rows) => {
+      if (err) throw err;
+      // console.log("execute response:\n", rows);
+      resolve(rows);
+    });
   });
 };
 
-const executeFunctionCall = (message) => {
+const executeFunctionCall = async (message) => {
+  let result = null;
   if (message["function_call"]["name"] === "askDatabase") {
     const query = JSON.parse(
       message["function_call"]["arguments"].replaceAll("\n", "")
     )["query"];
-    askDatabase(query);
+    result = await askDatabase(query);
   }
+  return result;
 };
 
 // reference: https://platform.openai.com/docs/guides/gpt/function-calling
@@ -135,7 +148,7 @@ const functions = (databaseSchemaString) => [
 ];
 
 // messages for testing
-const messages = [];
+const messages: ChatCompletionRequestMessage[] = [];
 messages.push({
   role: ChatCompletionRequestMessageRoleEnum.System,
   content:
@@ -150,18 +163,18 @@ messages.push({
 const start = async () => {
   const str = await getDatabaseSchemaString();
   console.log("Database:\n", str);
-  console.log("Question:\n", messages);
-  chatGPT(messages, functions(str))
-    .then((res) => {
-      console.log(res);
-      const message = res.choices[0].message;
-      console.log("GPT response:\n", message);
-      messages.push(message);
-      if (message.function_call) {
-        executeFunctionCall(message);
-      }
-    })
-    .catch((err) => console.log("err:", err.toJSON()));
+  const res = await chatGPT(messages, functions(str));
+  const message = res.choices[0].message;
+  messages.push(message);
+  if (message.function_call) {
+    const result = await executeFunctionCall(message);
+    messages.push({
+      role: ChatCompletionResponseMessageRoleEnum.Function,
+      name: message.function_call.name,
+      content: util.inspect(result),
+    });
+    console.log("\nConversations:\n", messages);
+  }
 };
 
 start();
