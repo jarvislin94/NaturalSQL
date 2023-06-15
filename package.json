@@ -1,0 +1,20 @@
+{
+  "name": "NaturalSQL",
+  "version": "1.0.0",
+  "description": "A demo to using natural language to query SQLite DB",
+  "main": "src/index.ts",
+  "author": "jinzhanglin@hotmail.com",
+  "license": "MIT",
+  "private": false,
+  "scripts": {
+    "start": "yarn ts-node src/index.ts"
+  },
+  "dependencies": {
+    "openai": "^3.3.0",
+    "sqlite3": "^5.1.6"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.1",
+    "typescript": "^5.1.3"
+  }
+}
