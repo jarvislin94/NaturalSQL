@@ -62,7 +62,7 @@ This repository contains code that combines SQLite querying with OpenAI's GPT-3.
 
 ## TODO
 
-- [ ] Supports to send message based on user inputs.
+- [x] Supports to send message based on user inputs.
 
 ## License
 

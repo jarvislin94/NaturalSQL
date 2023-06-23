@@ -6,7 +6,11 @@ import {
   OpenAIApi,
 } from "openai";
 import { ChatCompletionRequestMessageRoleEnum } from "openai";
+import prompts from "prompts";
+import { exit } from "node:process";
+import chalk from "chalk";
 
+import { print } from "../utils/print";
 import { rapidApiKey, basePath, rapidApiHost } from "../config.json";
 
 //@ts-ignore
@@ -33,11 +37,12 @@ const openai = new OpenAIApi(configuration);
 
 const sqlite3 = verbose();
 
-const db = new sqlite3.Database("./db/chinook.db", (err) => {
+const db = new sqlite3.Database("./db/chinook.db", async (err) => {
   if (err) {
     return console.error(err.message);
   }
-  console.log("Connected to the chinook database.");
+  console.log("\nConnected to the chinook database! ✅ \n");
+  await collectUserInput();
 });
 
 // openai
@@ -154,15 +159,10 @@ messages.push({
   content:
     "Answer user questions by generating SQL queries against the Chinook Music Database.",
 });
-messages.push({
-  role: ChatCompletionRequestMessageRoleEnum.User,
-  content: "Hi, who are the top 5 artists by number of tracks?",
-});
 
 // main app
 const start = async () => {
   const str = await getDatabaseSchemaString();
-  console.log("Database:\n", str);
   const res = await chatGPT(messages, functions(str));
   const message = res.choices[0].message;
   messages.push(message);
@@ -173,8 +173,30 @@ const start = async () => {
       name: message.function_call.name,
       content: util.inspect(result),
     });
-    console.log("\nConversations:\n", messages);
   }
+  // console.log(messages);
+  print(messages);
+  await collectUserInput();
 };
 
-start();
+// collect user inputs
+const collectUserInput = async () => {
+  const response = await prompts(
+    {
+      type: "text",
+      name: "message",
+      message: chalk.bgYellow.bold("Hi there! How can I assist you?"),
+    },
+    {
+      onCancel: () => {
+        console.log(chalk.bgYellow.bold("\n Have a good day! Bye :) \n"));
+        exit();
+      },
+    }
+  );
+  messages.push({
+    role: ChatCompletionRequestMessageRoleEnum.User,
+    content: response.message,
+  });
+  await start();
+};
